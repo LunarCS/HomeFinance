@@ -26,7 +26,7 @@ if __name__ == "__main__":
             SQLfunctions.updateGainedMoney(self, Income)
         
         def GetPersonID(self):
-            return SQLfunctions.GetPersonID(person)
+            return SQLfunctions.GetPersonID(self)
         
 
     
@@ -37,20 +37,22 @@ if __name__ == "__main__":
             self.person_id = person_id
             self.location = location
 		
-        def StartTransaction(self, purchasedItems):
+        def StartTransaction(self, purchasedItems, person):
             id = int(SQLfunctions.StartTransaction(self))  #Returns transaction ID
             for item in purchasedItems:
                 SQLfunctions.InsertItem(id, item)
-            SQLfunctions.UpdateTransactions(self)
+            SQLfunctions.UpdateTransactions(id)
+            SQLfunctions.updateMoneySpent(person.GetPersonID(), id)
         
         def CheckTransactions(self, date):
             print(SQLfunctions.CheckTransactions(self, date))
 
 
     class PurchasedItems:
-        def __init__(self, item, price):
+        def __init__(self, item, price, quantity):
             self.item = item
             self.price = price
+            self.quantity = quantity
     
     class Income:
         def __init__(self, moneyGained):
@@ -67,15 +69,15 @@ if __name__ == "__main__":
         
     
     def main(): 
-        SQLfunctions.c.execute("SELECT * FROM People")
         Date = Timetable(InputDate())
         Date.InsertDate()
         User = InputUser()
         user = person(User, 0, 0)
         user.insertToDB()
         items = InputPurchasedItems()
-        transaction = Transaction(Date.GetDateID(), 0, user.GetPersonID(), InputTransactionLocation())
-        transaction.StartTransaction(items)
+        transactionLocation = InputTransactionLocation()
+        transaction = Transaction(Date.GetDateID(), 0, user.GetPersonID(), transactionLocation)
+        transaction.StartTransaction(items, user)
         return
     
     def Input(message):
@@ -113,17 +115,20 @@ if __name__ == "__main__":
     def InputPurchasedItems():
         inputs = []
         while (True):
-            input = Input("Enter item purchased in parentheses () and Price (Type exitNOW once you are done!)\n")
-            if input == "exitNOW":
+            input = Input("Enter item purchased in parentheses () and Base Price and Quanity(Type exitNOW once you are done!)\n")
+            if input.lower() == "exitnow":
                 break
             items = re.findall('\[[^\]]*\]|\([^\)]*\)|\"[^\"]*\"|\S+', input)
             itemName = items[0].strip("()")
-            itemPrice = items[1]
-            item = PurchasedItems(itemName, itemPrice)
+            itemPrice = int(items[1])
+            try:
+                itemQuantity = float(items[2])
+            except IndexError:
+                itemQuantity = 1
+                
+            item = PurchasedItems(itemName, itemPrice, itemQuantity)
             inputs.append(item)
-
-            
-        return 
+        return inputs
     
     def InputTransactionLocation():
         return Input("Enter where you made this transaction\n")

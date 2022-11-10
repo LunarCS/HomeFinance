@@ -8,6 +8,7 @@ def convertTuple(tup):
     string = ''
     for item in tup:
         string = string + str(item) + "*"
+    print(string)
     return string
 
 #Person functions
@@ -19,15 +20,15 @@ def insertPerson(person):
     except:
         print("User is already in database!")
 
-def updateMoneySpent(person, transaction):
+def updateMoneySpent(personid, id):
     c.execute("""
     UPDATE People
     SET TotalMoneySpent = TotalMoneySpent + 
     (SELECT TransactionMoney
     FROM Transactions
     WHERE person_id == :personID
-    AND TransactionID == :transactionId)
-    """, {'person_id':GetPersonID(person.name), 'transactionID':GetTransactionID(person.name)})
+    AND TransactionID == :transactionID)
+    """, {'personID':personid, 'transactionID':id})
 
 def updateGainedMoney(person, Income, date):
     personID = GetPersonID(person.name)
@@ -46,28 +47,28 @@ def updateGainedMoney(person, Income, date):
 def InsertItem(transactionid, purchasedItem):
     c.execute("""
     INSERT INTO PurchasedItems
-    VALUES (:transaction_id, :item, :price)""", {'transaction_id':transactionid, 'item':purchasedItem.item, 'price':purchasedItem.price})
+    VALUES (:transaction_id, :item, :price, :quantity, :total)""", {'transaction_id':transactionid, 'item':purchasedItem.item, 'price':purchasedItem.price, 'quantity':purchasedItem.quantity, 'total': purchasedItem.quantity * purchasedItem.price})
 
-def StartTransaction(transaction, person):
+def StartTransaction(transaction):
     c.execute("""
     INSERT INTO Transactions (date_id, TransactionMoney, person_id, TransactionLocation)
     VALUES (:date_id, 0, :person_id, :location)""",
-    {'date_id':transaction.date_id, 'person_id':GetPersonID(person.name), 'location':transaction.location})
+    {'date_id':transaction.date_id, 'person_id':transaction.person_id, 'location':transaction.location})
 
     c.execute("""
     SELECT TransactionID
     FROM Transactions
-    ORDER BY DESC
+    ORDER BY TransactionID DESC
     LIMIT 1""")
-    return int(convertTuple(c.fetchone()).split('*'))
+    return int(convertTuple(c.fetchone()).strip('*'))
 
 
-def UpdateTransactions(transaction):
+def UpdateTransactions(id):
     c.execute("""
     UPDATE Transactions
     SET TransactionMoney = :totalPrice
-    )
-    """, {'totalPrice': TotalPrice(transaction)})
+    WHERE TransactionID = :id
+    """, {'totalPrice': TotalPrice(id), 'id':id})
 
 def CheckTransactions(transaction, date):
     ids = GetTransactionID(date, transaction.location)
@@ -89,10 +90,10 @@ def CheckTransactions(transaction, date):
 
 def TotalPrice(id):
     c.execute("""
-        (SELECT SUM(Price)
+        SELECT SUM(TotalPrice)
         FROM PurchasedItems
-        WHERE transaction_id == :transaction_id)""", {'transaction_id':id})
-    return int(convertTuple(c.fetchone()).split('*'))
+        WHERE transaction_id == :transaction_id""", {'transaction_id':id})
+    return float(convertTuple(c.fetchone()).strip('*'))
 
 #Timetable functions
 
@@ -110,14 +111,14 @@ def GetDateID(date):
     SELECT dateID
     FROM Timetable
     WHERE Date == :date""", {'date':date})
-    return int(convertTuple(c.fetchone()).split('*'))
+    return int(convertTuple(c.fetchone()).strip('*'))
 
 def GetPersonID(person):
     c.execute("""
     SELECT PersonID
     FROM People
     WHERE Name == :name""", {'name':person.name})
-    return int(convertTuple(c.fetchone()).split('*'))
+    return int(convertTuple(c.fetchone()).strip('*'))
 
 def GetTransactionID(date, location):
     c.execute("""
@@ -129,12 +130,6 @@ def GetTransactionID(date, location):
         WHERE Date == :date)
     AND TransactionLocation == :location""", {'date':date, 'location':location})
     return c.fetchall()
-
-
-
-
-#def getTransactionid()
-#def getPersonid()
 
 def DeleteAll():
     c.execute("DELETE FROM PurchasedItems")
